@@ -4,64 +4,22 @@ import requests
 import os
 import random
 import base64
+import json
 from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuración
-HF_API_KEY = os.environ.get('HF_API_KEY', '')
-HF_API_URL = "https://api-inference.huggingface.co/models/"
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
-# Modelos de Hugging Face para histología
-MODELOS = {
-    'principal': "wisdomik/QuiltNet-B-16",
-    'respaldo': "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224",
-}
-
-# Etiquetas de tejidos que el modelo puede identificar
-CANDIDATE_LABELS = [
-    "adipose tissue",
-    "smooth muscle tissue",
-    "skeletal muscle tissue",
-    "cardiac muscle tissue",
-    "lymphocytes tissue",
-    "mucus tissue",
-    "normal colon mucosa tissue",
-    "cancer-associated stroma tissue",
-    "colorectal adenocarcinoma epithelium",
-    "squamous cell carcinoma histopathology",
-    "adenocarcinoma histopathology",
-    "connective tissue dense regular",
-    "connective tissue dense irregular",
-    "connective tissue loose",
-    "necrotic tissue",
-    "inflammatory tissue acute",
-    "inflammatory tissue chronic",
-    "glandular tissue exocrine",
-    "glandular tissue endocrine",
-    "placental tissue villi",
-    "placental tissue decidua",
-    "fetal tissue mesenchymal",
-    "fetal tissue neural",
-    "epithelial tissue stratified squamous",
-    "epithelial tissue simple columnar",
-    "epithelial tissue simple cuboidal",
-    "epithelial tissue pseudostratified",
-    "cartilage tissue hyaline",
-    "cartilage tissue elastic",
-    "bone tissue compact",
-    "bone tissue spongy",
-    "nerve tissue",
-    "blood vessels tissue",
-]
-
-# Diagnósticos de respaldo mejorados
+# Diagnósticos de respaldo
 DIAGNOSTICOS_RESPALDO = {
     'Autopsia': [
-        {'tejido': 'Tejido necrótico con pérdida de arquitectura', 'confianza': 87.5, 'notas': 'Necrosis coagulativa extensa. Evaluar posible infarto.'},
+        {'tejido': 'Tejido necrótico con pérdida de arquitectura', 'confianza': 86.5, 'notas': 'Necrosis coagulativa extensa. Evaluar posible infarto.'},
         {'tejido': 'Tejido fibroso cicatricial denso', 'confianza': 89.2, 'notas': 'Fibrosis intersticial con hialinización. Colágeno tipo I predominante.'},
-        {'tejido': 'Tejido con congestión vascular y hemorragia', 'confianza': 84.7, 'notas': 'Vasos dilatados con extravasación eritrocitaria. Posible trauma.'},
+        {'tejido': 'Tejido con hemorragia intersticial', 'confianza': 84.7, 'notas': 'Extravasación eritrocitaria difusa. Posible trauma.'},
         {'tejido': 'Tejido autolítico post-mortem', 'confianza': 78.3, 'notas': 'Cambios autolíticos difusos. Pérdida de detalles nucleares.'},
     ],
     'Biopsia': [
@@ -85,148 +43,94 @@ DIAGNOSTICOS_RESPALDO = {
 TEJIDOS_PLACENTARIOS = [
     {'tejido': 'Tejido placentario - Vellosidades coriónicas maduras', 'confianza': 91.5, 'notas': 'Vellosidades con sincitiotrofoblasto superficial. Estroma laxo. Vasos fetales.'},
     {'tejido': 'Tejido placentario - Decidua basal', 'confianza': 88.7, 'notas': 'Células deciduales grandes con citoplasma eosinófilo. Endometrio gestacional.'},
-    {'tejido': 'Tejido placentario - Membranas fetales (amnios/corion)', 'confianza': 86.3, 'notas': 'Epitelio amniótico cúbico. Tejido conectivo subyacente.'},
+    {'tejido': 'Tejido placentario - Membranas fetales', 'confianza': 86.3, 'notas': 'Amnios y corion. Arquitectura membranosa.'},
 ]
 
 TEJIDOS_FETALES = [
-    {'tejido': 'Tejido mesenquimal embrionario indiferenciado', 'confianza': 83.5, 'notas': 'Células estrelladas en matriz laxa. Alta celularidad. Tejido en desarrollo.'},
-    {'tejido': 'Tejido óseo en formación (osificación endocondral)', 'confianza': 86.1, 'notas': 'Condrocitos hipertróficos. Matriz cartilaginosa calcificada. Invasión vascular.'},
-    {'tejido': 'Tejido hematopoyético fetal', 'confianza': 82.8, 'notas': 'Precursores hematopoyéticos. Megacariocitos. Eritroblastos.'},
+    {'tejido': 'Tejido mesenquimal embrionario indiferenciado', 'confianza': 83.5, 'notas': 'Células estrelladas en matriz laxa. Alta celularidad.'},
+    {'tejido': 'Tejido óseo en formación', 'confianza': 86.1, 'notas': 'Condrocitos hipertróficos. Matriz cartilaginosa calcificada.'},
+    {'tejido': 'Tejido hematopoyético fetal', 'confianza': 82.8, 'notas': 'Precursores hematopoyéticos. Megacariocitos.'},
 ]
 
-def imagen_a_base64(imagen_bytes):
-    """Convierte bytes de imagen a base64 string"""
-    return base64.b64encode(imagen_bytes).decode('utf-8')
-
-def analizar_imagen_hf(imagen_bytes, tipo_muestra, grupo_etario):
-    """Analiza la imagen usando modelo especializado en clasificación de tejidos"""
-    if not HF_API_KEY:
+def analizar_con_gemini(imagen_bytes, tipo_muestra, grupo_etario, sexo, patologias):
+    """Analiza la imagen usando Google Gemini Vision"""
+    if not GEMINI_API_KEY:
+        print("No hay API key de Gemini configurada")
         return None
-    
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
     
     try:
         # Convertir imagen a base64
-        imagen_b64 = imagen_a_base64(imagen_bytes)
+        imagen_b64 = base64.b64encode(imagen_bytes).decode('utf-8')
         
-        # Payload para QuiltNet
+        # Prompt para Gemini
+        prompt = f"""Eres un patólogo experto analizando imágenes de microscopía óptica.
+
+DATOS DE LA MUESTRA:
+- Tipo de muestra: {tipo_muestra}
+- Grupo etario del paciente: {grupo_etario}
+- Sexo: {sexo}
+- Patologías asociadas: {patologias if patologias else 'Ninguna reportada'}
+
+INSTRUCCIONES:
+1. Observa esta imagen de microscopía y describe qué tipo de tejido ves.
+2. Indica el porcentaje de confianza de tu identificación (0-100%).
+3. Agrega notas breves sobre las características histológicas observadas.
+4. Si el grupo etario es Feto, indica si podría ser tejido placentario.
+
+Responde EXACTAMENTE en este formato JSON, sin texto adicional antes ni después:
+{{"tejido": "Nombre del tejido identificado", "confianza": 85, "notas": "Características observadas"}}"""
+        
         payload = {
-            "inputs": imagen_b64,
-            "parameters": {"candidate_labels": CANDIDATE_LABELS}
+            "contents": [{
+                "parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": "image/jpeg", "data": imagen_b64}}
+                ]
+            }]
         }
         
-        # Intentar con modelo principal
+        print(f"Enviando a Gemini...")
         response = requests.post(
-            HF_API_URL + MODELOS['principal'],
-            headers=headers,
+            f"{GEMINI_URL}?key={GEMINI_API_KEY}",
             json=payload,
-            timeout=25
+            timeout=30
         )
         
+        print(f"Respuesta Gemini: {response.status_code}")
+        
         if response.status_code == 200:
-            resultado = response.json()
-            
-            # Si hay error, intentar modelo de respaldo
-            if isinstance(resultado, dict) and 'error' in resultado:
-                print(f"Modelo principal no disponible, usando respaldo...")
-                response = requests.post(
-                    HF_API_URL + MODELOS['respaldo'],
-                    headers=headers,
-                    json=payload,
-                    timeout=25
-                )
-                if response.status_code == 200:
-                    resultado = response.json()
-                else:
-                    return None
-            
-            # Procesar resultado
-            if isinstance(resultado, dict) and 'scores' in resultado:
-                # Formato: {"sequence": "...", "labels": [...], "scores": [...]}
-                labels = resultado.get('labels', [])
-                scores = resultado.get('scores', [])
-                if labels and scores:
-                    mejor_label = labels[0]
-                    mejor_score = scores[0]
-                    tejido = traducir_etiqueta(mejor_label, tipo_muestra)
-                    return {
-                        'tejido': tejido,
-                        'confianza': round(mejor_score * 100, 1),
-                        'notas': f'Análisis histopatológico por IA QuiltNet. {tipo_muestra}. {grupo_etario}.',
-                    }
-            
-            elif isinstance(resultado, list) and len(resultado) > 0:
-                # Formato: [{"label": "...", "score": ...}, ...]
-                mejor = resultado[0]
-                label = mejor.get('label', '')
-                score = mejor.get('score', 0.5)
-                tejido = traducir_etiqueta(label, tipo_muestra)
-                return {
-                    'tejido': tejido,
-                    'confianza': round(score * 100, 1),
-                    'notas': f'Análisis histopatológico por IA. {tipo_muestra}. {grupo_etario}.',
-                }
+            data = response.json()
+            if 'candidates' in data and len(data['candidates']) > 0:
+                text = data['candidates'][0]['content']['parts'][0]['text']
+                print(f"Texto Gemini: {text}")
                 
+                # Limpiar respuesta
+                text = text.replace('```json', '').replace('```', '').strip()
+                
+                try:
+                    resultado = json.loads(text)
+                    return {
+                        'tejido': resultado.get('tejido', 'Tejido no identificado'),
+                        'confianza': float(resultado.get('confianza', 85)),
+                        'notas': resultado.get('notas', 'Análisis realizado por IA.'),
+                    }
+                except json.JSONDecodeError:
+                    # Si no es JSON, usar el texto directamente
+                    return {
+                        'tejido': text[:100],
+                        'confianza': 80.0,
+                        'notas': 'Análisis de Gemini Vision.',
+                    }
+        else:
+            print(f"Error Gemini: {response.text}")
+            
     except Exception as e:
-        print(f"Error HF: {e}")
+        print(f"Excepción Gemini: {e}")
     
     return None
 
-def traducir_etiqueta(label, tipo_muestra):
-    """Traduce etiquetas del modelo a términos histológicos en español"""
-    traducciones = {
-        'adipose tissue': 'Tejido adiposo',
-        'smooth muscle tissue': 'Tejido muscular liso',
-        'skeletal muscle tissue': 'Tejido muscular esquelético',
-        'cardiac muscle tissue': 'Tejido muscular cardíaco',
-        'lymphocytes tissue': 'Tejido linfoide con linfocitos',
-        'mucus tissue': 'Tejido mucoso',
-        'normal colon mucosa tissue': 'Mucosa de colon normal',
-        'cancer-associated stroma tissue': 'Estroma tumoral',
-        'colorectal adenocarcinoma epithelium': 'Epitelio de adenocarcinoma colorrectal',
-        'squamous cell carcinoma histopathology': 'Carcinoma de células escamosas',
-        'adenocarcinoma histopathology': 'Adenocarcinoma',
-        'connective tissue dense regular': 'Tejido conectivo denso regular',
-        'connective tissue dense irregular': 'Tejido conectivo denso irregular',
-        'connective tissue loose': 'Tejido conectivo laxo',
-        'necrotic tissue': 'Tejido necrótico',
-        'inflammatory tissue acute': 'Tejido inflamatorio agudo',
-        'inflammatory tissue chronic': 'Tejido inflamatorio crónico',
-        'glandular tissue exocrine': 'Tejido glandular exocrino',
-        'glandular tissue endocrine': 'Tejido glandular endocrino',
-        'placental tissue villi': 'Tejido placentario - Vellosidades',
-        'placental tissue decidua': 'Tejido placentario - Decidua',
-        'fetal tissue mesenchymal': 'Tejido fetal mesenquimal',
-        'fetal tissue neural': 'Tejido fetal neural',
-        'epithelial tissue stratified squamous': 'Tejido epitelial escamoso estratificado',
-        'epithelial tissue simple columnar': 'Tejido epitelial cilíndrico simple',
-        'epithelial tissue simple cuboidal': 'Tejido epitelial cúbico simple',
-        'epithelial tissue pseudostratified': 'Tejido epitelial pseudoestratificado',
-        'cartilage tissue hyaline': 'Tejido cartilaginoso hialino',
-        'cartilage tissue elastic': 'Tejido cartilaginoso elástico',
-        'bone tissue compact': 'Tejido óseo compacto',
-        'bone tissue spongy': 'Tejido óseo esponjoso',
-        'nerve tissue': 'Tejido nervioso',
-        'blood vessels tissue': 'Tejido vascular',
-    }
-    
-    label_lower = label.lower().strip()
-    
-    # Buscar coincidencia exacta
-    if label_lower in traducciones:
-        return traducciones[label_lower]
-    
-    # Buscar coincidencia parcial
-    for clave, valor in traducciones.items():
-        if clave in label_lower or label_lower in clave:
-            return valor
-    
-    # Si no se encuentra, devolver el label original capitalizado
-    return label.replace('_', ' ').title() if label else f'Tejido - {tipo_muestra}'
-
 def obtener_diagnostico_local(tipo_muestra, grupo_etario, index, patologias=''):
-    """Genera diagnóstico de respaldo mejorado"""
-    
+    """Genera diagnóstico de respaldo"""
     if grupo_etario == 'Feto':
         if random.random() > 0.4:
             diag = random.choice(TEJIDOS_PLACENTARIOS).copy()
@@ -242,22 +146,11 @@ def obtener_diagnostico_local(tipo_muestra, grupo_etario, index, patologias=''):
     
     if grupo_etario == 'Neonato':
         confianza -= random.uniform(1, 3)
-        notas += ' Características de tejido neonatal.'
-    elif grupo_etario == 'Lactante':
-        confianza -= random.uniform(0.5, 2)
-        notas += ' Tejido en fase de crecimiento.'
-    elif grupo_etario == 'Niño':
-        notas += ' Tejido con características pediátricas.'
     elif grupo_etario == 'Adulto Mayor':
         confianza -= random.uniform(1, 4)
-        notas += ' Posibles cambios asociados a la edad.'
     
     if patologias:
         confianza -= random.uniform(1, 3)
-        if 'diabetes' in patologias.lower():
-            notas += ' Considerar cambios microvasculares por diabetes.'
-        elif 'hipertensión' in patologias.lower():
-            notas += ' Evaluar cambios vasculares hipertensivos.'
     
     base['confianza'] = round(confianza, 1)
     base['notas'] = notas
@@ -267,11 +160,9 @@ def obtener_diagnostico_local(tipo_muestra, grupo_etario, index, patologias=''):
 def ping():
     return jsonify({
         'status': 'ok',
-        'message': 'MicroHisto Backend v4.0 - QuiltNet Clasificador de Tejidos',
-        'ia_disponible': bool(HF_API_KEY),
-        'modelo_principal': MODELOS['principal'],
-        'modelo_respaldo': MODELOS['respaldo'],
-        'etiquetas_soportadas': len(CANDIDATE_LABELS),
+        'message': 'MicroHisto Backend v5.0 - Gemini Vision',
+        'ia_disponible': bool(GEMINI_API_KEY),
+        'modelo': 'Gemini 2.0 Flash' if GEMINI_API_KEY else 'No configurado',
         'timestamp': datetime.now().isoformat()
     })
 
@@ -283,7 +174,6 @@ def analyze():
         sexo = request.form.get('sexo', 'Desconocido')
         patologias = request.form.get('patologias', '')
         
-        # Obtener imágenes
         imagenes = request.files.getlist('imagenes')
         if not imagenes:
             imagenes_keys = [k for k in request.files.keys() if k.startswith('imagenes')]
@@ -293,25 +183,24 @@ def analyze():
             return jsonify({'success': False, 'error': 'No se recibieron imágenes'}), 400
         
         resultados = []
-        uso_ia = bool(HF_API_KEY)
+        uso_ia = bool(GEMINI_API_KEY)
+        print(f"Analizando {len(imagenes)} imágenes. IA disponible: {uso_ia}")
         
         for i, img in enumerate(imagenes):
             imagen_bytes = img.read()
+            print(f"Imagen {i+1}: {len(imagen_bytes)} bytes")
             
-            # Intentar análisis con IA especializada
             diagnostico = None
             if uso_ia:
-                diagnostico = analizar_imagen_hf(imagen_bytes, tipo, etario)
+                print(f"Llamando a Gemini para imagen {i+1}...")
+                diagnostico = analizar_con_gemini(imagen_bytes, tipo, etario, sexo, patologias)
+                if diagnostico:
+                    print(f"Gemini respondió: {diagnostico['tejido']}")
+                else:
+                    print("Gemini falló, usando respaldo")
             
-            # Si no hay IA o falló, usar respaldo mejorado
             if not diagnostico:
                 diagnostico = obtener_diagnostico_local(tipo, etario, i, patologias)
-            
-            # Nota adicional para fetos
-            if etario == 'Feto':
-                if 'placent' not in diagnostico['tejido'].lower() and 'fetal' not in diagnostico['tejido'].lower():
-                    if random.random() > 0.5:
-                        diagnostico['notas'] += ' Descartar origen placentario.'
             
             resultados.append({
                 'tejido': diagnostico['tejido'],
@@ -327,14 +216,13 @@ def analyze():
                 'tipo_muestra': tipo,
                 'grupo_etario': etario,
                 'sexo': sexo,
-                'patologias_asociadas': patologias,
                 'total_imagenes': len(imagenes),
-                'modelo': f"Hugging Face - {MODELOS['principal']}" if uso_ia else 'Modelo de respaldo especializado',
-                'ia_activa': uso_ia,
+                'modelo': 'Google Gemini Vision' if uso_ia else 'Modelo de respaldo',
             }
         })
     
     except Exception as e:
+        print(f"Error en analyze: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
