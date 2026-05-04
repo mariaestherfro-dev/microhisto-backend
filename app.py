@@ -4,6 +4,7 @@ import requests
 import os
 import random
 from datetime import datetime
+import base64
 
 app = Flask(__name__)
 CORS(app)
@@ -14,8 +15,8 @@ HF_API_URL = "https://api-inference.huggingface.co/models/"
 
 # Modelos de Hugging Face para histología
 MODELOS = {
-    'histopatologia': "MahmoodLab/UNI",
-    'respaldo': "google/path-foundation",
+    'principal': "wisdomik/QuiltNet-B-16",  # Modelo de clasificación de tejidos
+    'respaldo': "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224",
 }
 
 # Diagnósticos de respaldo mejorados por tipo de muestra
@@ -60,84 +61,113 @@ TEJIDOS_FETALES = [
     {'tejido': 'Tejido neural en desarrollo', 'confianza': 84.3, 'notas': 'Células neuroepiteliales. Matriz germinal. Migración neuronal.'},
 ]
 
+def image_to_base64(image_bytes):
+    """Convierte bytes de imagen a base64 string"""
+    return base64.b64encode(image_bytes).decode('utf-8')
+
 def analizar_imagen_hf(imagen_bytes, tipo_muestra, grupo_etario):
-    """Analiza la imagen usando modelo especializado en histopatología"""
+    """Analiza la imagen usando un modelo especializado en clasificación de tejidos"""
     if not HF_API_KEY:
         return None
     
     headers = {"Authorization": f"Bearer {HF_API_KEY}"}
     
+    # Categorías específicas para histología
+    candidate_labels = [
+        "adipose tissue", "smooth muscle tissue", "skeletal muscle tissue",
+        "lymphocytes tissue", "mucus tissue", "normal colon mucosa tissue",
+        "cancer-associated stroma tissue", "colorectal adenocarcinoma epithelium",
+        "squamous cell carcinoma histopathology", "adenocarcinoma histopathology",
+        "connective tissue", "necrotic tissue", "inflammatory tissue",
+        "glandular tissue", "placental tissue", "fetal tissue",
+        "epithelial tissue", "nervous tissue", "cartilage tissue",
+        "bone tissue", "blood vessels tissue", "fibrosis tissue"
+    ]
+    
     try:
-        # Intentar con modelo especializado
+        # Intentar con QuiltNet
+        payload = {
+            "inputs": image_to_base64(imagen_bytes),
+            "parameters": {"candidate_labels": candidate_labels}
+        }
+        
         response = requests.post(
-            HF_API_URL + MODELOS['histopatologia'],
+            HF_API_URL + MODELOS['principal'],
             headers=headers,
-            data=imagen_bytes,
-            timeout=20
+            json=payload,
+            timeout=30
         )
         
         if response.status_code == 200:
             resultado = response.json()
             
             if isinstance(resultado, dict) and 'error' in resultado:
-                # Modelo principal no disponible, usar respaldo
+                # Intentar con modelo de respaldo
                 response = requests.post(
                     HF_API_URL + MODELOS['respaldo'],
                     headers=headers,
-                    data=imagen_bytes,
-                    timeout=20
+                    json=payload,
+                    timeout=30
                 )
                 if response.status_code == 200:
                     resultado = response.json()
                 else:
                     return None
             
-            # Procesar respuesta del modelo
+            # Procesar resultados
             if isinstance(resultado, list) and len(resultado) > 0:
-                mejor = resultado[0]
+                # Ordenar por score descendente
+                resultado_ordenado = sorted(resultado, key=lambda x: x.get('score', 0), reverse=True)
+                mejor = resultado_ordenado[0]
+                segundo = resultado_ordenado[1] if len(resultado_ordenado) > 1 else None
+                
                 label = mejor.get('label', '')
                 score = mejor.get('score', 0.5)
                 
-                # Traducir etiquetas comunes
+                # Traducir etiqueta
                 tejido = traducir_etiqueta(label, tipo_muestra)
+                
+                # Construir notas detalladas
+                notas = f'Análisis histopatológico por IA. {tipo_muestra}. {grupo_etario}.'
+                if segundo and segundo.get('score', 0) > 0.3:
+                    notas += f' Segunda posibilidad: {traducir_etiqueta(segundo["label"], tipo_muestra)} ({round(segundo["score"]*100, 1)}%).'
                 
                 return {
                     'tejido': tejido,
                     'confianza': round(score * 100, 1),
-                    'notas': f'Análisis histopatológico por IA. {tipo_muestra}. {grupo_etario}.',
+                    'notas': notas,
                 }
-            elif isinstance(resultado, dict):
-                return {
-                    'tejido': f'Tejido analizado - {tipo_muestra}',
-                    'confianza': 90.0,
-                    'notas': f'Análisis por modelo fundacional de patología. {grupo_etario}.',
-                }
+            
     except Exception as e:
         print(f"Error HF: {e}")
     
     return None
 
 def traducir_etiqueta(label, tipo_muestra):
-    """Traduce etiquetas comunes de modelos de IA a términos histológicos"""
+    """Traduce etiquetas comunes de modelos de IA a términos histológicos en español"""
     traducciones = {
-        'normal': 'Tejido con arquitectura normal',
-        'tumor': 'Tejido con proliferación anormal',
-        'cancer': 'Tejido con cambios neoplásicos',
-        'benign': 'Tejido con cambios benignos',
-        'malignant': 'Tejido con características malignas',
-        'inflammation': 'Tejido con infiltrado inflamatorio',
-        'necrosis': 'Tejido necrótico',
-        'fibrosis': 'Tejido fibrótico',
-        'adipose': 'Tejido adiposo',
-        'muscle': 'Tejido muscular',
-        'epithelium': 'Tejido epitelial',
-        'connective': 'Tejido conectivo',
-        'gland': 'Tejido glandular',
-        'lymphoid': 'Tejido linfoide',
-        'cartilage': 'Tejido cartilaginoso',
-        'bone': 'Tejido óseo',
-        'nerve': 'Tejido nervioso',
-        'vessel': 'Tejido vascular',
+        'adipose tissue': 'Tejido adiposo',
+        'smooth muscle tissue': 'Tejido muscular liso',
+        'skeletal muscle tissue': 'Tejido muscular estriado esquelético',
+        'lymphocytes tissue': 'Tejido linfoide con infiltrado linfocitario',
+        'mucus tissue': 'Tejido mucinoso',
+        'normal colon mucosa tissue': 'Mucosa colónica normal',
+        'cancer-associated stroma tissue': 'Estroma tumoral',
+        'colorectal adenocarcinoma epithelium': 'Epitelio de adenocarcinoma colorrectal',
+        'squamous cell carcinoma histopathology': 'Carcinoma de células escamosas',
+        'adenocarcinoma histopathology': 'Adenocarcinoma',
+        'connective tissue': 'Tejido conectivo',
+        'necrotic tissue': 'Tejido necrótico',
+        'inflammatory tissue': 'Tejido con infiltrado inflamatorio',
+        'glandular tissue': 'Tejido glandular',
+        'placental tissue': 'Tejido placentario',
+        'fetal tissue': 'Tejido fetal',
+        'epithelial tissue': 'Tejido epitelial',
+        'nervous tissue': 'Tejido nervioso',
+        'cartilage tissue': 'Tejido cartilaginoso',
+        'bone tissue': 'Tejido óseo',
+        'blood vessels tissue': 'Tejido vascular',
+        'fibrosis tissue': 'Tejido fibrótico',
     }
     
     label_lower = label.lower()
@@ -145,24 +175,22 @@ def traducir_etiqueta(label, tipo_muestra):
         if clave in label_lower:
             return valor
     
-    return label if label else f'Tejido - {tipo_muestra}'
+    # Si no encuentra traducción, devolver label original formateado
+    return label.replace('_', ' ').replace('tissue', 'tejido').strip().capitalize()
 
 def obtener_diagnostico_local(tipo_muestra, grupo_etario, index, patologias=''):
     """Genera diagnóstico de respaldo mejorado"""
     
-    # Para fetos: priorizar tejidos fetales/placentarios
     if grupo_etario == 'Feto':
         if random.random() > 0.4:
             diag = TEJIDOS_PLACENTARIOS[index % len(TEJIDOS_PLACENTARIOS)]
         else:
             diag = TEJIDOS_FETALES[index % len(TEJIDOS_FETALES)]
-        return diag
+        return diag.copy()
     
-    # Para otros grupos etarios
     diagnosticos = DIAGNOSTICOS_RESPALDO.get(tipo_muestra, DIAGNOSTICOS_RESPALDO['Biopsia'])
     base = diagnosticos[index % len(diagnosticos)].copy()
     
-    # Ajustes según grupo etario
     confianza = base['confianza']
     notas = base['notas']
     
@@ -178,7 +206,6 @@ def obtener_diagnostico_local(tipo_muestra, grupo_etario, index, patologias=''):
         confianza -= random.uniform(1, 4)
         notas += ' Posibles cambios degenerativos asociados a la edad.'
     
-    # Ajuste por patologías
     if patologias:
         confianza -= random.uniform(1, 3)
         if 'diabetes' in patologias.lower():
@@ -196,7 +223,7 @@ def ping():
         'status': 'ok',
         'message': 'MicroHisto Backend v3.0 - Histopatología Especializada',
         'ia_disponible': bool(HF_API_KEY),
-        'modelo_principal': MODELOS['histopatologia'] if HF_API_KEY else 'No configurado',
+        'modelo_principal': MODELOS['principal'] if HF_API_KEY else 'No configurado',
         'modelo_respaldo': MODELOS['respaldo'] if HF_API_KEY else 'No configurado',
         'timestamp': datetime.now().isoformat()
     })
@@ -209,7 +236,6 @@ def analyze():
         sexo = request.form.get('sexo', 'Desconocido')
         patologias = request.form.get('patologias', '')
         
-        # Obtener imágenes
         imagenes = request.files.getlist('imagenes')
         if not imagenes:
             imagenes_keys = [k for k in request.files.keys() if k.startswith('imagenes')]
@@ -224,16 +250,13 @@ def analyze():
         for i, img in enumerate(imagenes):
             imagen_bytes = img.read()
             
-            # Intentar análisis con IA especializada
             diagnostico = None
             if uso_ia:
                 diagnostico = analizar_imagen_hf(imagen_bytes, tipo, etario)
             
-            # Si no hay IA o falló, usar respaldo mejorado
             if not diagnostico:
                 diagnostico = obtener_diagnostico_local(tipo, etario, i, patologias)
             
-            # Nota adicional para fetos
             if etario == 'Feto':
                 if 'placent' not in diagnostico['tejido'].lower() and 'fetal' not in diagnostico['tejido'].lower():
                     if random.random() > 0.5:
@@ -255,7 +278,7 @@ def analyze():
                 'sexo': sexo,
                 'patologias_asociadas': patologias,
                 'total_imagenes': len(imagenes),
-                'modelo': f"Hugging Face - {MODELOS['histopatologia']}" if uso_ia else 'Modelo de respaldo especializado',
+                'modelo': f"Hugging Face - {MODELOS['principal']}" if uso_ia else 'Modelo de respaldo especializado',
                 'ia_activa': uso_ia,
             }
         })
