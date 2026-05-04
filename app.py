@@ -18,38 +18,38 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0
 DIAGNOSTICOS_RESPALDO = {
     'Autopsia': [
         {'tejido': 'Tejido necrótico con pérdida de arquitectura', 'confianza': 86.5, 'notas': 'Necrosis coagulativa extensa. Evaluar posible infarto.'},
-        {'tejido': 'Tejido fibroso cicatricial denso', 'confianza': 89.2, 'notas': 'Fibrosis intersticial con hialinización. Colágeno tipo I predominante.'},
-        {'tejido': 'Tejido con hemorragia intersticial', 'confianza': 84.7, 'notas': 'Extravasación eritrocitaria difusa. Posible trauma.'},
+        {'tejido': 'Tejido fibroso cicatricial denso', 'confianza': 89.2, 'notas': 'Fibrosis intersticial con hialinización.'},
+        {'tejido': 'Tejido con hemorragia intersticial', 'confianza': 84.7, 'notas': 'Extravasación eritrocitaria difusa.'},
         {'tejido': 'Tejido autolítico post-mortem', 'confianza': 78.3, 'notas': 'Cambios autolíticos difusos. Pérdida de detalles nucleares.'},
     ],
     'Biopsia': [
-        {'tejido': 'Tejido conectivo denso regular', 'confianza': 92.5, 'notas': 'Fibras colágenas paralelas organizadas. Compatible con tendón o ligamento.'},
+        {'tejido': 'Tejido conectivo denso regular', 'confianza': 92.5, 'notas': 'Fibras colágenas paralelas organizadas. Tendón o ligamento.'},
         {'tejido': 'Tejido epitelial cilíndrico simple con microvellosidades', 'confianza': 88.3, 'notas': 'Células columnares con núcleos basales. Mucosa intestinal.'},
-        {'tejido': 'Tejido adiposo unilocular maduro', 'confianza': 94.1, 'notas': 'Adipocitos con núcleo periférico aplanado. Sin signos de inflamación.'},
+        {'tejido': 'Tejido adiposo unilocular maduro', 'confianza': 94.1, 'notas': 'Adipocitos con núcleo periférico aplanado.'},
         {'tejido': 'Tejido muscular estriado esquelético', 'confianza': 90.7, 'notas': 'Estriaciones transversales conservadas. Núcleos periféricos.'},
-        {'tejido': 'Tejido glandular exocrino con ácinos serosos', 'confianza': 86.9, 'notas': 'Arquitectura acinar preservada. Gránulos de zimógeno visibles.'},
-        {'tejido': 'Tejido epitelial estratificado plano no queratinizado', 'confianza': 91.3, 'notas': 'Mucosa escamosa. Membrana basal íntegra. Sin displasia.'},
-        {'tejido': 'Tejido linfoide con folículos secundarios', 'confianza': 85.6, 'notas': 'Centros germinales reactivos. Arquitectura ganglionar conservada.'},
-        {'tejido': 'Tejido cartilaginoso hialino', 'confianza': 88.9, 'notas': 'Condrocitos en lagunas. Matriz extracelular basófila homogénea.'},
+        {'tejido': 'Tejido glandular exocrino', 'confianza': 86.9, 'notas': 'Arquitectura acinar preservada. Gránulos de zimógeno.'},
+        {'tejido': 'Tejido epitelial estratificado plano no queratinizado', 'confianza': 91.3, 'notas': 'Mucosa escamosa. Membrana basal íntegra.'},
+        {'tejido': 'Tejido linfoide con folículos secundarios', 'confianza': 85.6, 'notas': 'Centros germinales reactivos.'},
+        {'tejido': 'Tejido cartilaginoso hialino', 'confianza': 88.9, 'notas': 'Condrocitos en lagunas. Matriz basófila homogénea.'},
     ],
     'Citologia': [
         {'tejido': 'Células epiteliales escamosas maduras', 'confianza': 87.3, 'notas': 'Núcleos picnóticos. Citoplasma eosinófilo amplio. Sin atipias.'},
-        {'tejido': 'Células inflamatorias agudas (neutrófilos)', 'confianza': 83.5, 'notas': 'Neutrófilos segmentados. Restos celulares. Exudado purulento.'},
-        {'tejido': 'Células mesenquimales fusiformes', 'confianza': 79.8, 'notas': 'Núcleos ovalados. Citoplasma escaso. Células estromales.'},
-        {'tejido': 'Células secretoras con gránulos citoplasmáticos', 'confianza': 81.2, 'notas': 'Citoplasma granular basófilo. Posible origen glandular.'},
+        {'tejido': 'Células inflamatorias agudas (neutrófilos)', 'confianza': 83.5, 'notas': 'Neutrófilos segmentados. Exudado purulento.'},
+        {'tejido': 'Células mesenquimales fusiformes', 'confianza': 79.8, 'notas': 'Núcleos ovalados. Células estromales.'},
+        {'tejido': 'Células secretoras con gránulos', 'confianza': 81.2, 'notas': 'Citoplasma granular basófilo. Origen glandular.'},
     ],
 }
 
 TEJIDOS_PLACENTARIOS = [
-    {'tejido': 'Tejido placentario - Vellosidades coriónicas maduras', 'confianza': 91.5, 'notas': 'Vellosidades con sincitiotrofoblasto superficial. Estroma laxo. Vasos fetales.'},
-    {'tejido': 'Tejido placentario - Decidua basal', 'confianza': 88.7, 'notas': 'Células deciduales grandes con citoplasma eosinófilo. Endometrio gestacional.'},
-    {'tejido': 'Tejido placentario - Membranas fetales', 'confianza': 86.3, 'notas': 'Amnios y corion. Arquitectura membranosa.'},
+    {'tejido': 'Tejido placentario - Vellosidades coriónicas maduras', 'confianza': 91.5, 'notas': 'Sincitiotrofoblasto superficial. Vasos fetales.'},
+    {'tejido': 'Tejido placentario - Decidua basal', 'confianza': 88.7, 'notas': 'Células deciduales grandes. Endometrio gestacional.'},
+    {'tejido': 'Tejido placentario - Membranas fetales', 'confianza': 86.3, 'notas': 'Amnios y corion.'},
 ]
 
 TEJIDOS_FETALES = [
-    {'tejido': 'Tejido mesenquimal embrionario indiferenciado', 'confianza': 83.5, 'notas': 'Células estrelladas en matriz laxa. Alta celularidad.'},
-    {'tejido': 'Tejido óseo en formación', 'confianza': 86.1, 'notas': 'Condrocitos hipertróficos. Matriz cartilaginosa calcificada.'},
-    {'tejido': 'Tejido hematopoyético fetal', 'confianza': 82.8, 'notas': 'Precursores hematopoyéticos. Megacariocitos.'},
+    {'tejido': 'Tejido mesenquimal embrionario', 'confianza': 83.5, 'notas': 'Células estrelladas en matriz laxa. Alta celularidad.'},
+    {'tejido': 'Tejido óseo en formación', 'confianza': 86.1, 'notas': 'Condrocitos hipertróficos. Matriz calcificada.'},
+    {'tejido': 'Tejido hematopoyético fetal', 'confianza': 82.8, 'notas': 'Precursores hematopoyéticos.'},
 ]
 
 def analizar_con_gemini(imagen_bytes, tipo_muestra, grupo_etario, sexo, patologias):
@@ -59,26 +59,45 @@ def analizar_con_gemini(imagen_bytes, tipo_muestra, grupo_etario, sexo, patologi
         return None
     
     try:
-        # Convertir imagen a base64
         imagen_b64 = base64.b64encode(imagen_bytes).decode('utf-8')
         
-        # Prompt para Gemini
-        prompt = f"""Eres un patólogo experto analizando imágenes de microscopía óptica.
+        prompt = f"""Actúa como un patólogo experto con 20 años de experiencia analizando láminas histológicas.
 
-DATOS DE LA MUESTRA:
-- Tipo de muestra: {tipo_muestra}
-- Grupo etario del paciente: {grupo_etario}
+Estás viendo una imagen de microscopía óptica de una muestra de {tipo_muestra}.
+
+DATOS DEL PACIENTE:
+- Edad: {grupo_etario}
 - Sexo: {sexo}
-- Patologías asociadas: {patologias if patologias else 'Ninguna reportada'}
+- Patologías: {patologias if patologias else 'No reportadas'}
 
-INSTRUCCIONES:
-1. Observa esta imagen de microscopía y describe qué tipo de tejido ves.
-2. Indica el porcentaje de confianza de tu identificación (0-100%).
-3. Agrega notas breves sobre las características histológicas observadas.
-4. Si el grupo etario es Feto, indica si podría ser tejido placentario.
+TU TAREA:
+Observa detenidamente esta imagen histológica y determina qué tipo de tejido se observa. Considera:
 
-Responde EXACTAMENTE en este formato JSON, sin texto adicional antes ni después:
-{{"tejido": "Nombre del tejido identificado", "confianza": 85, "notas": "Características observadas"}}"""
+1. La forma y disposición de las células
+2. La matriz extracelular
+3. La presencia de fibras, vasos o estructuras especializadas
+4. El patrón de tinción (H&E)
+
+TIPOS DE TEJIDO QUE DEBES IDENTIFICAR:
+- Tejido epitelial (escamoso, cúbico, cilíndrico, estratificado, pseudoestratificado, de transición)
+- Tejido conectivo (laxo, denso regular, denso irregular, elástico, reticular)
+- Tejido adiposo (blanco, pardo)
+- Tejido cartilaginoso (hialino, elástico, fibrocartílago)
+- Tejido óseo (compacto, esponjoso)
+- Tejido muscular (liso, esquelético, cardíaco)
+- Tejido nervioso (neuronas, neuroglía)
+- Tejido sanguíneo y hematopoyético
+- Tejido linfoide
+- Tejido glandular
+
+NOTAS ADICIONALES:
+- Si ves múltiples tipos de tejido, menciona el predominante
+- Si observas inflamación, necrosis, fibrosis o atipias, menciónalo
+- Si el paciente es feto y ves estructuras vellosas, considera tejido placentario
+- Si ves signos de malignidad, indícalo
+
+Responde EXACTAMENTE en este formato JSON (sin texto antes ni después):
+{{"tejido": "Tipo de tejido específico identificado", "confianza": 90, "notas": "Descripción de lo observado en 1-2 frases"}}"""
         
         payload = {
             "contents": [{
@@ -104,7 +123,6 @@ Responde EXACTAMENTE en este formato JSON, sin texto adicional antes ni después
                 text = data['candidates'][0]['content']['parts'][0]['text']
                 print(f"Texto Gemini: {text}")
                 
-                # Limpiar respuesta
                 text = text.replace('```json', '').replace('```', '').strip()
                 
                 try:
@@ -115,7 +133,6 @@ Responde EXACTAMENTE en este formato JSON, sin texto adicional antes ni después
                         'notas': resultado.get('notas', 'Análisis realizado por IA.'),
                     }
                 except json.JSONDecodeError:
-                    # Si no es JSON, usar el texto directamente
                     return {
                         'tejido': text[:100],
                         'confianza': 80.0,
@@ -160,7 +177,7 @@ def obtener_diagnostico_local(tipo_muestra, grupo_etario, index, patologias=''):
 def ping():
     return jsonify({
         'status': 'ok',
-        'message': 'MicroHisto Backend v5.0 - Gemini Vision',
+        'message': 'MicroHisto Backend v5.1 - Gemini Vision Mejorado',
         'ia_disponible': bool(GEMINI_API_KEY),
         'modelo': 'Gemini 2.0 Flash' if GEMINI_API_KEY else 'No configurado',
         'timestamp': datetime.now().isoformat()
@@ -195,9 +212,9 @@ def analyze():
                 print(f"Llamando a Gemini para imagen {i+1}...")
                 diagnostico = analizar_con_gemini(imagen_bytes, tipo, etario, sexo, patologias)
                 if diagnostico:
-                    print(f"Gemini respondió: {diagnostico['tejido']}")
+                    print(f"Gemini: {diagnostico['tejido']}")
                 else:
-                    print("Gemini falló, usando respaldo")
+                    print("Gemini falló")
             
             if not diagnostico:
                 diagnostico = obtener_diagnostico_local(tipo, etario, i, patologias)
